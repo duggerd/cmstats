@@ -1,0 +1,7 @@
+[Unit]
+Description=cmstats
+
+[Service]
+Type=oneshot
+ExecStart=/home/lcladmin/cmstats/env/bin/python /home/lcladmin/cmstats/cmstats.py
+WorkingDirectory=/home/lcladmin/cmstats/

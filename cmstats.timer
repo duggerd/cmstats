@@ -1,0 +1,9 @@
+[Unit]
+Description=cmstats
+
+[Timer]
+OnUnitActiveSec=300s
+OnBootSec=300s
+
+[Install]
+WantedBy=timers.target

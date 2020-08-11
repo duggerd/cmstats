@@ -1,0 +1,14 @@
+server {
+  listen 80 default_server;
+
+  server_name _;
+
+  location /cmstats {
+    root /var/www/html;
+    index index.html;
+  }
+
+  location / {
+    proxy_pass http://192.168.100.1:80;
+  }
+}
