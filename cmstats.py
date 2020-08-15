@@ -292,7 +292,7 @@ def update_rrd(channels):
         lower_power_limit = -15
         upper_power_limit = 15
 
-        if ((float(power) > lower_power_limit) or (float(power) < upper_power_limit)):
+        if ((float(power) > lower_power_limit) and (float(power) < upper_power_limit)):
             power_style = ' style="background-color:#00FF00"'
         else:
             power_style = ' style="background-color:#FF0000"'
@@ -301,15 +301,15 @@ def update_rrd(channels):
 
         lower_snr_limit = 0
 
-        if ((float(power) > -6) or (float(power) < 15)):
-            lower_snr_limit = 30
+        if ((float(power) > -15) and (float(power) < -6)):
+            lower_snr_limit = 33
 
             if ((float(snr)) > lower_snr_limit):
                 snr_style = ' style="background-color:#00FF00"'
             else:
                 snr_style = ' style="background-color:#FF0000"'
-        elif ((float(power) > -15) or (float(power) < -6)):
-            lower_snr_limit = 33
+        elif ((float(power) > -6) and (float(power) < 15)):
+            lower_snr_limit = 30
 
             if ((float(snr)) > lower_snr_limit):
                 snr_style = ' style="background-color:#00FF00"'
@@ -318,7 +318,10 @@ def update_rrd(channels):
         else:
             lower_snr_limit = 33
 
-            snr_style = ' style="background-color:#FF0000"'
+            if ((float(snr)) > lower_snr_limit):
+                snr_style = ' style="background-color:#00FF00"'
+            else:
+                snr_style = ' style="background-color:#FF0000"'
 
         index_page_ds_summary_contents = index_page_ds_summary_contents + str(
             '<tr>' +
@@ -485,7 +488,7 @@ def update_rrd(channels):
             lower_power_limit = 45
             upper_power_limit = 51
 
-        if ((float(power) > lower_power_limit) or (float(power) < upper_power_limit)):
+        if ((float(power) > lower_power_limit) and (float(power) < upper_power_limit)):
             power_style = ' style="background-color:#00FF00"'
         else:
             power_style = ' style="background-color:#FF0000"'
