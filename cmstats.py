@@ -1,16 +1,17 @@
 import bs4 as bs
 import os
 import os.path
-import datetime
+from datetime import datetime, timezone
 from urllib.request import urlopen
 
 # rrdtool dump test.rrd > test.xml
 
 cm_status_url = 'http://192.168.100.1/cmconnectionstatus.html'
-db_path = '/home/lcladmin/cmstats/'
+cm_info_url = 'http://192.168.100.1/cmswinfo.html'
+db_path = '/home/lcladmin/cmstats/data/'
 web_path = '/var/www/html/cmstats/'
 
-def parse_cmstatus(source):
+def parse_cm_status(source):
     soup = bs.BeautifulSoup(source, 'lxml')
     tables = soup.find_all('table', attrs={'class':'simpleTable'})
 
@@ -113,10 +114,94 @@ def parse_cmstatus(source):
 
     return ret
 
+def parse_cm_info(source):
+    soup = bs.BeautifulSoup(source, 'lxml')
+
+    # model number
+
+    header_elements = soup.find_all('span', attrs={'id':'thisModelNumberIs'})
+
+    header_element = header_elements[0]
+
+    model_number = header_element.text.strip()
+
+    # information table
+
+    tables = soup.find_all('table', attrs={'class':'simpleTable'})
+
+    info_table = tables[0]
+
+    info_elements = info_table.find_all('tr')
+
+    # hardware version
+
+    hw_ver_elements = info_elements[2]
+
+    hw_ver_cols = hw_ver_elements.find_all('td')
+
+    hw_ver = hw_ver_cols[1].text.strip()
+
+    # software version
+
+    sw_ver_elements = info_elements[3]
+
+    sw_ver_cols = sw_ver_elements.find_all('td')
+
+    sw_ver = sw_ver_cols[1].text.strip()
+
+    # hfc mac
+
+    hfc_mac_elements = info_elements[4]
+
+    hfc_mac_cols = hfc_mac_elements.find_all('td')
+
+    hfc_mac = hfc_mac_cols[1].text.strip()
+
+    # serial number
+
+    ser_num_elements = info_elements[5]
+
+    ser_num_cols = ser_num_elements.find_all('td')
+
+    ser_num = ser_num_cols[1].text.strip()
+
+    # status table
+
+    status_table = tables[1]
+
+    status_elements = status_table.find_all('tr')
+
+    # uptime
+
+    uptime_elements = status_elements[1]
+
+    uptime_cols = uptime_elements.find_all('td')
+
+    uptime = uptime_cols[1].text.strip()
+
+    # print('* product information raw values *')
+    # print('model number: ' + model_number)
+    # print('hardware version: ' + hw_ver)
+    # print('software version: ' + sw_ver)
+    # print('hfc mac: ' + hfc_mac)
+    # print('serial number: ' + ser_num)
+    # print('uptime: ' + uptime)
+
+    ret = {
+        'model_number': model_number,
+        'hw_ver': hw_ver,
+        'sw_ver': sw_ver,
+        'hfc_mac': hfc_mac,
+        'ser_num': ser_num,
+        'uptime': uptime
+    }
+
+    return ret
+
 def get_frequency_value(elem):
     return int(elem['frequency'])
 
-def update_rrd(channels):
+def update_rrd(channels, information):
     # sort channels by frequency
 
     channels['downstream'] = sorted(channels['downstream'], key=get_frequency_value)
@@ -125,17 +210,51 @@ def update_rrd(channels):
     db_ext = '.rrd'
     img_ext = '.png'
 
+    current_time = datetime.now(timezone.utc).isoformat()
+
     # **** DOWNSTREAM ****
 
-    ds_path = db_path + 'data/downstream/'
+    ds_path = db_path + 'downstream/'
 
     graph_path = web_path
 
     index_contents = str(
-        '<html><head><title>Cable Modem Statistics</title></head><body>' +
+        '<html><head><title>' +
+        'Cable Modem Statistics (' +
+        'Model: ' + information['model_number'] + ', ' +
+        'MAC: ' + information['hfc_mac'] + ', ' +
+        'Serial: ' + information['ser_num'] +
+        ')</title></head><body>' +
         '<h2>Cable Modem Statistics</h2>' +
         '<h3>Last Update</h3>' +
-        '<p>' + datetime.datetime.utcnow().isoformat() + '</p>'
+        '<p>' + current_time + '</p>' +
+        '<h3>Modem Information</h3>' +
+        '<table border="1">' +
+        '<tr>' +
+        '<th align="left">Model Number</th>' +
+        '<td>' + information['model_number'] + '</td>' +
+        '</tr>' +
+        '<tr>' +
+        '<th align="left">Hardware Version</th>' +
+        '<td>' + information['hw_ver'] + '</td>' +
+        '</tr>' +
+        '<tr>' +
+        '<th align="left">Software Version</th>' +
+        '<td>' + information['sw_ver'] + '</td>' +
+        '</tr>' +
+        '<tr>' +
+        '<th align="left">HFC MAC Address</th>' +
+        '<td>' + information['hfc_mac'] + '</td>' +
+        '</tr>' +
+        '<tr>' +
+        '<th align="left">Serial Number</th>' +
+        '<td>' + information['ser_num'] + '</td>' +
+        '</tr>' +
+        '<tr>' +
+        '<th align="left">Uptime</th>' +
+        '<td>' + information['uptime'] + '</td>' +
+        '</tr>' +
+        '</table>'
     )
 
     index_page_ds_summary_contents = str(
@@ -299,29 +418,15 @@ def update_rrd(channels):
 
         # snr
 
-        lower_snr_limit = 0
-
-        if ((float(power) > -15) and (float(power) < -6)):
-            lower_snr_limit = 33
-
-            if ((float(snr)) > lower_snr_limit):
-                snr_style = ' style="background-color:#00FF00"'
-            else:
-                snr_style = ' style="background-color:#FF0000"'
-        elif ((float(power) > -6) and (float(power) < 15)):
+        if ((float(power) > -6) and (float(power) < 15)):
             lower_snr_limit = 30
-
-            if ((float(snr)) > lower_snr_limit):
-                snr_style = ' style="background-color:#00FF00"'
-            else:
-                snr_style = ' style="background-color:#FF0000"'
         else:
             lower_snr_limit = 33
 
-            if ((float(snr)) > lower_snr_limit):
-                snr_style = ' style="background-color:#00FF00"'
-            else:
-                snr_style = ' style="background-color:#FF0000"'
+        if ((float(snr)) > lower_snr_limit):
+            snr_style = ' style="background-color:#00FF00"'
+        else:
+            snr_style = ' style="background-color:#FF0000"'
 
         index_page_ds_summary_contents = index_page_ds_summary_contents + str(
             '<tr>' +
@@ -337,7 +442,7 @@ def update_rrd(channels):
             '<html><head><title>Downstream Channel Details (' + frequency + ' Hz)</title></head><body>' +
             '<h2>Downstream Channel Details (' + frequency + ' Hz)</h2>' +
             '<h3>Last Update</h3>' +
-            '<p>' + datetime.datetime.utcnow().isoformat() + '</p>' +
+            '<p>' + current_time + '</p>' +
             '<h3>Downstream Channel Summary</h3>' +
             '<table border="1">' +
             '<tr>' +
@@ -394,7 +499,7 @@ def update_rrd(channels):
 
     # **** UPSTREAM ****
 
-    us_path = db_path + 'data/upstream/'
+    us_path = db_path + 'upstream/'
 
     index_page_us_summary_contents = str(
         '<h3>Upstream Channels Summary</h3>' +
@@ -505,7 +610,7 @@ def update_rrd(channels):
             '<html><head><title>Upstream Channel Details (' + frequency + ' Hz)</title></head><body>' +
             '<h2>Upstream Channel Details (' + frequency + ' Hz)</h2>' +
             '<h3>Last Update</h3>' +
-            '<p>' + datetime.datetime.utcnow().isoformat() + '</p>' +
+            '<p>' + current_time + '</p>' +
             '<h3>Upstream Channel Summary</h3>' +
             '<table border="1">' +
             '<tr>' +
@@ -551,7 +656,7 @@ def update_rrd(channels):
         '<img src="downstream_all_power.png"/><br/><br/>' +
         '<img src="downstream_all_snr.png"/><br/><br/>' +
         '<img src="downstream_all_corrected.png"/><br/><br/>' +
-        '<img src="downstream_all_uncorrected.png"/><br/><br/>' +
+        '<img src="downstream_all_uncorrected.png"/>' +
         '<h3>Upstream Channels Graphs</h3>' +
         '<img src="upstream_all_width.png"/><br/><br/>' +
         '<img src="upstream_all_power.png"/>' +
@@ -562,10 +667,17 @@ def update_rrd(channels):
         f.write(index_contents)
 
 # with open('cmconnectionstatus.html') as f:
-    # page = f.read()
+    # cm_status_page = f.read()
 
-page = urlopen(cm_status_url).read()
+# with open('cmswinfo.html') as f:
+    # cm_info_page = f.read()
 
-channels = parse_cmstatus(page)
+cm_status_page = urlopen(cm_status_url).read()
 
-update_rrd(channels)
+cm_info_page = urlopen(cm_info_url).read()
+
+channels = parse_cm_status(cm_status_page)
+
+information = parse_cm_info(cm_info_page)
+
+update_rrd(channels, information)
