@@ -1,15 +1,104 @@
 import bs4 as bs
 import os
 import os.path
+import requests
+import base64
+import json
 from datetime import datetime, timezone
-from urllib.request import urlopen
+from requests.packages import urllib3
 
 # rrdtool dump test.rrd > test.xml
 
-cm_status_url = 'http://192.168.100.1/cmconnectionstatus.html'
-cm_info_url = 'http://192.168.100.1/cmswinfo.html'
+cfg_name = 'config.json'
 db_path = '/home/lcladmin/cmstats/data/'
 web_path = '/var/www/html/cmstats/'
+
+def main():
+    with open(db_path + cfg_name) as f:
+        config_text = f.read()
+
+    config = json.loads(config_text)
+
+    conn_type = config['conn_type']
+
+    if (conn_type == 'http'):
+        read_http()
+    elif (conn_type == 'https'):
+        username = config['username']
+        password = config['password']
+
+        read_https(username, password)
+    else:
+        raise Exception('invalid conn_type')
+
+def read_http():
+    # with open('cmconnectionstatus.html') as f:
+        # cm_status_page = f.read()
+
+    # with open('cmswinfo.html') as f:
+        # cm_info_page = f.read()
+
+    cm_status_page = requests.get('http://192.168.100.1/cmconnectionstatus.html').text
+
+    cm_info_page = requests.get('http://192.168.100.1/cmswinfo.html').text
+
+    parse_all(cm_status_page, cm_info_page)
+
+def read_https(username, password):
+    message = username + ':' + password
+    message_bytes = message.encode('ascii')
+    base64_bytes = base64.b64encode(message_bytes)
+    cm_cred = base64_bytes.decode('ascii')
+
+    #print(cm_cred)
+
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    s1 = requests.Session()
+
+    s1.headers.update({'Cookie': 'HttpOnly: true, Secure: true'})
+
+    s1.headers.update({'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8'})
+
+    s1.headers.update({'Authorization': 'Basic ' + cm_cred})
+
+    #print(s1.headers)
+
+    r1 = s1.get('https://192.168.100.1/cmconnectionstatus.html?' + cm_cred, verify=False)
+
+    #print(r1.text)
+
+    s2 = requests.Session()
+
+    s2.headers.update({'Cookie': 'HttpOnly: true, Secure: true; credential=' + r1.text})
+
+    #print(s2.headers)
+
+    r2a = s2.get('https://192.168.100.1/cmconnectionstatus.html', verify=False)
+
+    #print(r2a.text)
+
+    r2b = s2.get('https://192.168.100.1/cmswinfo.html', verify=False)
+
+    #print(r2b.text)
+
+    s3 = requests.Session()
+
+    #print(s3.headers)
+
+    try:
+        s3.get('https://192.168.100.1/logout.html', verify=False)
+    except:
+        pass
+
+    parse_all(r2a.text, r2b.text)
+
+def parse_all(cm_status_page, cm_info_page):
+    channels = parse_cm_status(cm_status_page)
+
+    information = parse_cm_info(cm_info_page)
+
+    update_rrd(channels, information)
 
 def parse_cm_status(source):
     soup = bs.BeautifulSoup(source, 'lxml')
@@ -666,18 +755,5 @@ def update_rrd(channels, information):
     with open(web_path + 'index.html', 'w') as f:
         f.write(index_contents)
 
-# with open('cmconnectionstatus.html') as f:
-    # cm_status_page = f.read()
-
-# with open('cmswinfo.html') as f:
-    # cm_info_page = f.read()
-
-cm_status_page = urlopen(cm_status_url).read()
-
-cm_info_page = urlopen(cm_info_url).read()
-
-channels = parse_cm_status(cm_status_page)
-
-information = parse_cm_info(cm_info_page)
-
-update_rrd(channels, information)
+if __name__== '__main__':
+    main()
