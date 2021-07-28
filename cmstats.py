@@ -385,7 +385,7 @@ def update_rrd(channels, information):
     ds_corrected_all_cmd = str(
         'rrdtool graph ' + ds_corrected_all_path + ' -a PNG ' +
         '--width 800 --height 400 --title "Corrected" ' +
-        '--vertical-label "Symbols" --disable-rrdtool-tag '
+        '--vertical-label "Symbols" --upper-limit 1 --disable-rrdtool-tag '
     )
 
     # uncorrected
@@ -395,7 +395,7 @@ def update_rrd(channels, information):
     ds_uncorrected_all_cmd = str(
         'rrdtool graph ' + ds_uncorrected_all_path + ' -a PNG ' +
         '--width 800 --height 400 --title "Uncorrected" ' +
-        '--vertical-label "Symbols" --disable-rrdtool-tag '
+        '--vertical-label "Symbols" --upper-limit 1 --disable-rrdtool-tag '
     )
 
     for ds_channel in channels['downstream']:
@@ -465,7 +465,7 @@ def update_rrd(channels, information):
 
         ds_corrected_ch_cmd = str(
             'rrdtool graph ' + corrected_graph_path + ' -a PNG --title="' + frequency + ' Hz" ' +
-            '--vertical-label "Symbols" --disable-rrdtool-tag ' +
+            '--vertical-label "Symbols" --upper-limit 1 --disable-rrdtool-tag ' +
             'DEF:corrected=' + ds_ch_path + ':corrected:AVERAGE ' +
             'LINE1:corrected#ff0000:Corrected'
         )
@@ -483,7 +483,7 @@ def update_rrd(channels, information):
 
         ds_uncorrected_ch_cmd = str(
             'rrdtool graph ' + uncorrected_graph_path + ' -a PNG --title="' + frequency + ' Hz" ' +
-            '--vertical-label "Symbols" --disable-rrdtool-tag ' +
+            '--vertical-label "Symbols" --upper-limit 1 --disable-rrdtool-tag ' +
             'DEF:uncorrected=' + ds_ch_path + ':uncorrected:AVERAGE ' +
             'LINE1:uncorrected#ff0000:Uncorrected'
         )
