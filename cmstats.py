@@ -32,12 +32,6 @@ def main():
         raise Exception('invalid conn_type')
 
 def read_http():
-    # with open('cmconnectionstatus.html') as f:
-        # cm_status_page = f.read()
-
-    # with open('cmswinfo.html') as f:
-        # cm_info_page = f.read()
-
     cm_status_page = requests.get('http://192.168.100.1/cmconnectionstatus.html').text
 
     cm_info_page = requests.get('http://192.168.100.1/cmswinfo.html').text
@@ -45,49 +39,29 @@ def read_http():
     parse_all(cm_status_page, cm_info_page)
 
 def read_https(username, password):
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    s = requests.Session()
+
+    r0 = s.get('https://192.168.100.1', verify=False)
+
     message = username + ':' + password
     message_bytes = message.encode('ascii')
     base64_bytes = base64.b64encode(message_bytes)
     cm_cred = base64_bytes.decode('ascii')
 
-    #print(cm_cred)
+    cm_head = {'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8', 'Authorization': 'Basic ' + cm_cred}
 
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    r1 = s.get('https://192.168.100.1/cmconnectionstatus.html?login_' + cm_cred, headers=cm_head, verify=False)
 
-    s1 = requests.Session()
+    cm_ct = r1.text
 
-    s1.headers.update({'Cookie': 'HttpOnly: true, Secure: true'})
+    r2a = s.get('https://192.168.100.1/cmconnectionstatus.html?ct_' + cm_ct, verify=False)
 
-    s1.headers.update({'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8'})
-
-    s1.headers.update({'Authorization': 'Basic ' + cm_cred})
-
-    #print(s1.headers)
-
-    r1 = s1.get('https://192.168.100.1/cmconnectionstatus.html?' + cm_cred, verify=False)
-
-    #print(r1.text)
-
-    s2 = requests.Session()
-
-    s2.headers.update({'Cookie': 'HttpOnly: true, Secure: true; credential=' + r1.text})
-
-    #print(s2.headers)
-
-    r2a = s2.get('https://192.168.100.1/cmconnectionstatus.html', verify=False)
-
-    #print(r2a.text)
-
-    r2b = s2.get('https://192.168.100.1/cmswinfo.html', verify=False)
-
-    #print(r2b.text)
-
-    s3 = requests.Session()
-
-    #print(s3.headers)
+    r2b = s.get('https://192.168.100.1/cmswinfo.html?ct_' + cm_ct, verify=False)
 
     try:
-        s3.get('https://192.168.100.1/logout.html', verify=False)
+        s.get('https://192.168.100.1/logout.html', verify=False)
     except:
         pass
 
