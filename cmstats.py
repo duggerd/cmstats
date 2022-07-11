@@ -11,13 +11,16 @@ from requests.packages import urllib3
 
 cfg_name = 'config.json'
 db_path = '/home/lcladmin/cmstats/data/'
-web_path = '/var/www/html/cmstats/'
+web_path = '/tmp/web/cmstats/'
 
 def main():
     with open(db_path + cfg_name) as f:
         config_text = f.read()
 
     config = json.loads(config_text)
+
+    if not os.path.exists(web_path):
+        os.makedirs(web_path)
 
     conn_type = config['conn_type']
 
