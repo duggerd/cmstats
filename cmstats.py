@@ -290,7 +290,9 @@ def update_rrd(channels, information):
         'Model: ' + information['model_number'] + ', ' +
         'MAC: ' + information['hfc_mac'] + ', ' +
         'Serial: ' + information['ser_num'] +
-        ')</title></head><body>' +
+        ')</title>' +
+        '<style>a, a:visited, a:hover, a:active { color:#0000FF; }</style>' +
+        '</head><body>' +
         '<h2>Cable Modem Statistics</h2>' +
         '<h3>Last Update</h3>' +
         '<p>' + current_time + '</p>' +
@@ -732,5 +734,5 @@ def update_rrd(channels, information):
     with open(web_path + 'index.html', 'w') as f:
         f.write(index_contents)
 
-if __name__== '__main__':
+if __name__ == '__main__':
     main()
